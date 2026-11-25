@@ -146,6 +146,21 @@ button{cursor:pointer}
 .debt-total{padding:16px;display:flex;justify-content:space-between;align-items:center}
 .debt-total b{font-family:var(--font-display);font-size:24px}
 
+/* poupança */
+.save{padding:16px;display:flex;flex-direction:column;gap:12px}
+.save .h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.save .lbl2{font-size:13px;font-weight:600;color:var(--muted)}
+.save .amt{font-family:var(--display);font-size:30px;font-weight:700;letter-spacing:-.5px;line-height:1.1}
+.save .sub{font-size:13px;color:var(--muted)}
+.save .sub b{color:var(--in)}
+.save .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.piggy{width:44px;height:44px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:none}
+.piggy svg{width:24px;height:24px}
+.mv{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--line)}
+.mv:last-child{border-bottom:0}
+.mv .d{font-size:13px;color:var(--muted)}
+.mv .x{border:0;background:none;color:var(--muted);font-size:18px;padding:2px 6px}
+
 /* abas */
 .tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom));z-index:5}
 .tabs .in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 68px 1fr 1fr;gap:2px;align-items:center}
@@ -255,6 +270,14 @@ button{cursor:pointer}
         <span class="hint" id="houseShare"></span>
       </div>
     </div>
+    <div class="card save" id="saveCard">
+      <div class="h">
+        <div><div class="lbl2">Poupança</div><div class="amt num" id="svTotal">R$ 0,00</div><div class="sub" id="svMonth"></div></div>
+        <div class="piggy" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9.5c0-3-3.1-5.5-7-5.5S5 6.5 5 9.5c0 1.6.8 3 2 4V17h3v-1.6c.6.1 1.3.1 2 .1s1.4 0 2-.1V17h3v-3.5c1.2-1 2-2.4 2-4z"/><path d="M15.5 8.5h.01"/><path d="M19 9.5h2"/></svg></div>
+      </div>
+      <div class="acts"><button class="btn primary" type="button" id="svIn">Guardar</button><button class="btn" type="button" id="svOut">Tirar</button></div>
+      <button class="link" type="button" id="svHist" style="align-self:flex-start">Ver histórico</button>
+    </div>
     <div class="filter" id="filterBox" hidden><span id="filterTxt"></span><button id="clearFilter" type="button">Limpar</button></div>
     <h2>Seus lançamentos <small id="countTxt">só você vê</small></h2>
     <div id="txList"></div>
@@ -353,6 +376,27 @@ button{cursor:pointer}
   </form>
 </div>
 
+<!-- folha: poupança -->
+<div class="sheet-bg" id="svSheet" role="dialog" aria-modal="true" aria-labelledby="svTitle">
+  <form class="sheet" id="svForm" novalidate>
+    <div class="grab"></div>
+    <h3><span id="svTitle">Poupança</span><button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h3>
+    <div class="seg kind" id="svSeg" role="group" aria-label="Guardar ou tirar">
+      <button type="button" data-v="in" aria-pressed="true">Guardar</button>
+      <button type="button" data-v="out" aria-pressed="false">Tirar</button>
+    </div>
+    <div class="amount"><span>R$</span><input id="svAmount" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Valor"></div>
+    <div class="row2">
+      <div class="field"><label for="svDate">Data</label><input id="svDate" type="date"></div>
+      <div class="field"><label for="svNote">Nota (opcional)</label><input id="svNote" maxlength="60" autocomplete="off" placeholder="Ex.: reserva"></div>
+    </div>
+    <div class="err" id="svErr"></div>
+    <button class="btn primary full" type="submit" id="svSave">Guardar</button>
+    <h3 style="font-size:17px;margin-top:6px">Histórico</h3>
+    <div class="card" id="svList"></div>
+  </form>
+</div>
+
 <!-- folha: categorias -->
 <div class="sheet-bg" id="catSheet" role="dialog" aria-modal="true" aria-labelledby="catTitle">
   <form class="sheet" id="catForm" novalidate>
@@ -428,7 +472,7 @@ function friendlyErr(e){
 /* ---------- estado ---------- */
 const now = new Date();
 const state = { y:now.getFullYear(), m:now.getMonth(), view:"casa", catKind:"casa", filterCat:null,
-  user:null, profile:null, household:null, members:[], txs:[], debts:[], cats:[], loading:false };
+  user:null, profile:null, household:null, members:[], txs:[], debts:[], cats:[], saves:[], loading:false };
 function memberName(id){ const p = state.members.find(m=>m.id===id); return p ? firstName(p.name) : "Alguém"; }
 function memberColor(id){ const i = state.members.findIndex(m=>m.id===id); return PCOLORS[i<0?3:i%PCOLORS.length]; }
 
@@ -514,7 +558,7 @@ async function onSession(session){
   }
   enterApp();
 }
-function enterApp(){ show("app"); render(); loadCats(); loadMonth(); loadDebts(); }
+function enterApp(){ show("app"); render(); loadCats(); loadMonth(); loadDebts(); loadSaves(); }
 
 /* ---------- dados ---------- */
 function monthRange(){
@@ -536,11 +580,15 @@ async function loadCats(){
   const { data, error } = await sb.from("categories").select("*").order("created_at");
   if(!error){ state.cats = data||[]; render(); if($("#txSheet").classList.contains("open")) drawForm(); if($("#catSheet").classList.contains("open")) drawCatManager(); }
 }
+async function loadSaves(){
+  const { data, error } = await sb.from("savings_moves").select("*").order("date",{ascending:false}).order("created_at",{ascending:false});
+  if(!error){ state.saves = data||[]; render(); if($("#svSheet").classList.contains("open")) drawSaveList(); }
+}
 async function loadDebts(){
   const { data, error } = await sb.from("debts").select("*").order("created_at");
   if(!error){ state.debts = data||[]; render(); }
 }
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden && state.user && state.household){ loadProfile().then(()=>{ loadCats(); loadMonth(); loadDebts(); }).catch(()=>{}); } });
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && state.user && state.household){ loadProfile().then(()=>{ loadCats(); loadMonth(); loadDebts(); loadSaves(); }).catch(()=>{}); } });
 
 /* ---------- cálculos ---------- */
 const casaTx = () => state.txs.filter(t=>t.scope==="casa");
@@ -634,6 +682,15 @@ function renderEu(){
   $("#metaTxt").textContent = t.inn>0 ? "Gastos: "+pct+"% da renda" : "Gastos: lance suas entradas";
   const mb=$("#metaBar"); mb.classList.toggle("over", pct>70); mb.firstElementChild.style.width=Math.min(pct,100)+"%";
   $("#houseShare").textContent = t.house ? "Inclui "+money(t.house)+" que você pagou de contas da casa" : "";
+  const [ma,mb2] = monthRange();
+  const svTotal = state.saves.reduce((a,m)=>a+Number(m.amount),0);
+  const svMonth = state.saves.filter(m=>m.date>=ma && m.date<mb2).reduce((a,m)=>a+Number(m.amount),0);
+  $("#svTotal").textContent = money(svTotal);
+  const sm=$("#svMonth"); sm.replaceChildren();
+  if(svMonth){
+    sm.append(document.createTextNode(MONTHS[state.m]+": "), el("b", null, (svMonth>0?"+ ":"− ")+money(Math.abs(svMonth))));
+    if(t.inn>0 && svMonth>0) sm.append(document.createTextNode(" · "+Math.round(svMonth/t.inn*100)+"% da renda (meta 20%)"));
+  } else sm.textContent = "Nada guardado em "+MONTHS[state.m].toLowerCase()+" ainda";
   let list = myTx();
   if(state.filterCat){ list = list.filter(x=>x.cat===state.filterCat); $("#filterBox").hidden=false; $("#filterTxt").textContent="Só: "+catOf(state.filterCat,"pessoal","out").name; }
   else $("#filterBox").hidden=true;
@@ -811,6 +868,54 @@ $("#debtDelete").addEventListener("click", async ()=>{
   const { error } = await sb.from("debts").delete().eq("id",editingDebt.id);
   if(error){ $("#debtErr").textContent=friendlyErr(error); return; }
   closeSheets(); loadDebts();
+});
+
+/* ---------- poupança ---------- */
+let svKind="in";
+function openSave(kind){
+  svKind=kind; $("#svAmount").value=""; $("#svNote").value=""; $("#svErr").textContent="";
+  const cur=state.y+"-"+pad(state.m+1);
+  $("#svDate").value = todayISO().slice(0,7)===cur ? todayISO() : cur+"-01";
+  drawSaveForm(); drawSaveList(); $("#svSheet").classList.add("open");
+  setTimeout(()=>$("#svAmount").focus(),60);
+}
+function drawSaveForm(){
+  document.querySelectorAll("#svSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===svKind)));
+  $("#svSave").textContent = svKind==="in" ? "Guardar" : "Tirar da poupança";
+}
+function drawSaveList(){
+  const box=$("#svList"); box.replaceChildren();
+  if(!state.saves.length){ box.appendChild(el("div","empty","Nada guardado ainda.")); return; }
+  state.saves.slice(0,60).forEach(m=>{
+    const r=el("div","mv");
+    const dt=new Date(m.date+"T12:00:00");
+    const left=el("div"); left.append(el("b",null,m.note|| (Number(m.amount)>0?"Guardei":"Tirei")), el("div","d", dt.getDate()+" de "+MONTHS[dt.getMonth()].toLowerCase()+" de "+dt.getFullYear()));
+    const v=el("b","num",(Number(m.amount)>0?"+ ":"− ")+money(Math.abs(Number(m.amount)))); if(Number(m.amount)>0) v.style.color="var(--in)";
+    const x=el("button","x","×"); x.type="button"; x.setAttribute("aria-label","Apagar este registro");
+    x.addEventListener("click", async ()=>{
+      if(x.dataset.c!=="1"){ x.dataset.c="1"; x.textContent="Apagar?"; x.style.fontSize="13px"; x.style.color="var(--out)"; return; }
+      const { error } = await sb.from("savings_moves").delete().eq("id",m.id);
+      if(error){ $("#svErr").textContent=friendlyErr(error); return; }
+      loadSaves();
+    });
+    r.append(left,v,x); box.appendChild(r);
+  });
+}
+$("#svIn").addEventListener("click",()=>openSave("in"));
+$("#svOut").addEventListener("click",()=>openSave("out"));
+$("#svHist").addEventListener("click",()=>openSave("in"));
+$("#svSeg").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; svKind=b.dataset.v; drawSaveForm(); });
+$("#svForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const v=parseMoney($("#svAmount").value);
+  if(!(v>0)){ $("#svErr").textContent="Digite um valor maior que zero, tipo 200,00."; return; }
+  const total=state.saves.reduce((a,m)=>a+Number(m.amount),0);
+  if(svKind==="out" && v>total+0.001){ $("#svErr").textContent="Você só tem "+money(total)+" guardado."; return; }
+  const btn=$("#svSave"); btn.disabled=true;
+  const { error } = await sb.from("savings_moves").insert({ date:$("#svDate").value||todayISO(), amount: svKind==="in"? v : -v, note:$("#svNote").value.trim().slice(0,60) });
+  btn.disabled=false;
+  if(error){ $("#svErr").textContent=friendlyErr(error); return; }
+  closeSheets(); loadSaves();
 });
 
 /* ---------- gerenciar categorias ---------- */
