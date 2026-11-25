@@ -268,7 +268,7 @@ button{cursor:pointer}
       <button type="button" data-v="in" aria-pressed="false">Entradas</button>
     </div>
     <div class="card donut-wrap" id="donutBox"></div>
-    <h2>Por categoria <small>toque pra ver os lançamentos</small></h2>
+    <h2>Por categoria <button class="link" type="button" id="manageCats">Criar ou apagar</button></h2>
     <div class="card" id="catList"></div>
   </section>
 
@@ -353,6 +353,25 @@ button{cursor:pointer}
   </form>
 </div>
 
+<!-- folha: categorias -->
+<div class="sheet-bg" id="catSheet" role="dialog" aria-modal="true" aria-labelledby="catTitle">
+  <form class="sheet" id="catForm" novalidate>
+    <div class="grab"></div>
+    <h3><span id="catTitle">Categorias</span><button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h3>
+    <div class="seg" id="cmSeg" role="group" aria-label="Categorias de">
+      <button type="button" data-v="casa" aria-pressed="true">Casa</button>
+      <button type="button" data-v="out" aria-pressed="false">Minhas saídas</button>
+      <button type="button" data-v="in" aria-pressed="false">Entradas</button>
+    </div>
+    <p class="note" id="cmHint" style="text-align:left;margin:0"></p>
+    <div class="card" id="cmList"></div>
+    <div class="field"><label for="cmName">Nova categoria</label><input id="cmName" autocomplete="off" maxlength="30" placeholder="Ex.: Pets, Academia, Streaming"></div>
+    <div class="field"><span class="lab">Cor</span><div class="chips" id="cmColors"></div></div>
+    <div class="err" id="cmErr"></div>
+    <button class="btn primary full" type="submit" id="cmAdd">Adicionar categoria</button>
+  </form>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 (function(){
@@ -361,30 +380,19 @@ const SUPABASE_URL = "https://bcrsezxkgczysnwqjfgl.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcnNlenhrZ2N6eXNud3FqZmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1NjAzMzgsImV4cCI6MjExMTEzNjMzOH0.Gf-Uweu8EVpOBhlcykyQwvL92FpHq-HEgf0KufPU3FI";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSession:true, autoRefreshToken:true } });
 
-/* ---------- categorias ---------- */
-const CATS = {
-  out: [
-    {id:"moradia", name:"Moradia", c:"#0d5c46", ab:"Mo"},
-    {id:"contas", name:"Contas da casa", c:"#2f6db5", ab:"Ct"},
-    {id:"mercado", name:"Mercado", c:"#c2413a", ab:"Me"},
-    {id:"transporte", name:"Transporte", c:"#7a52b3", ab:"Tr"},
-    {id:"lazer", name:"Lazer e comida fora", c:"#d9822b", ab:"Lz"},
-    {id:"saude", name:"Saúde", c:"#1f8f8f", ab:"Sa"},
-    {id:"cuidados", name:"Cuidados e roupas", c:"#b3527a", ab:"Cr"},
-    {id:"familia", name:"Família", c:"#8a6d1f", ab:"Fa"},
-    {id:"dividas", name:"Dívidas e parcelas", c:"#4b5a52", ab:"Dv"},
-    {id:"outros-s", name:"Outros", c:"#8a958f", ab:"Ou"}
-  ],
-  in: [
-    {id:"salario", name:"Salário", c:"#1d8556", ab:"Sl"},
-    {id:"freela", name:"Freela", c:"#2f6db5", ab:"Fr"},
-    {id:"vale", name:"Vale alimentação", c:"#d9822b", ab:"Va"},
-    {id:"transf", name:"Transferência", c:"#7a52b3", ab:"Tf"},
-    {id:"outros-e", name:"Outros", c:"#8a958f", ab:"Ou"}
-  ]
-};
-const catById = {}; CATS.out.concat(CATS.in).forEach(c=>catById[c.id]=c);
-const cat = id => catById[id] || {id:"?",name:"Sem categoria",c:"#8a958f",ab:"?"};
+/* ---------- categorias (vêm do banco) ---------- */
+const CAT_COLORS = ["#0d5c46","#2f6db5","#c2413a","#7a52b3","#d9822b","#1f8f8f","#b3527a","#8a6d1f","#4b5a52","#e0559a","#3a9d5d","#8a958f"];
+function abbr(name){ const w=String(name||"?").trim().split(/\s+/); return (w.length>1 ? w[0][0]+w[1][0] : w[0].slice(0,2)).replace(/^./,c=>c.toUpperCase()); }
+function decorate(c){ return {id:c.key, key:c.key, dbid:c.id, name:c.name, c:c.color, ab:abbr(c.name), kind:c.kind, house:!!c.household_id}; }
+function catsFor(scope, kind){
+  return state.cats.filter(c=> scope==="casa" ? (c.household_id && c.kind==="out") : (c.user_id===state.user.id && c.kind===kind)).map(decorate)
+    .sort((a,b)=> (a.key.startsWith("outros")?1:0)-(b.key.startsWith("outros")?1:0));
+}
+function catOf(key, scope, kind){
+  const hit = catsFor(scope, kind).find(c=>c.key===key) || catsFor(scope==="casa"?"pessoal":"casa", kind).find(c=>c.key===key);
+  return hit || {id:key,key,name: key && key.startsWith("outros") ? "Outros" : "Sem categoria", c:"#8a958f", ab:"Ou"};
+}
+const txCat = tx => catOf(tx.cat, tx.scope, tx.type);
 const PCOLORS = ["var(--p1)","var(--p2)","#7a52b3","#2f6db5"];
 
 /* ---------- utilidades ---------- */
@@ -420,7 +428,7 @@ function friendlyErr(e){
 /* ---------- estado ---------- */
 const now = new Date();
 const state = { y:now.getFullYear(), m:now.getMonth(), view:"casa", catKind:"casa", filterCat:null,
-  user:null, profile:null, household:null, members:[], txs:[], debts:[], loading:false };
+  user:null, profile:null, household:null, members:[], txs:[], debts:[], cats:[], loading:false };
 function memberName(id){ const p = state.members.find(m=>m.id===id); return p ? firstName(p.name) : "Alguém"; }
 function memberColor(id){ const i = state.members.findIndex(m=>m.id===id); return PCOLORS[i<0?3:i%PCOLORS.length]; }
 
@@ -506,7 +514,7 @@ async function onSession(session){
   }
   enterApp();
 }
-function enterApp(){ show("app"); render(); loadMonth(); loadDebts(); }
+function enterApp(){ show("app"); render(); loadCats(); loadMonth(); loadDebts(); }
 
 /* ---------- dados ---------- */
 function monthRange(){
@@ -524,11 +532,15 @@ async function loadMonth(){
   $("#storeNote").textContent = "";
   state.txs = data || []; render();
 }
+async function loadCats(){
+  const { data, error } = await sb.from("categories").select("*").order("created_at");
+  if(!error){ state.cats = data||[]; render(); if($("#txSheet").classList.contains("open")) drawForm(); if($("#catSheet").classList.contains("open")) drawCatManager(); }
+}
 async function loadDebts(){
   const { data, error } = await sb.from("debts").select("*").order("created_at");
   if(!error){ state.debts = data||[]; render(); }
 }
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden && state.user && state.household){ loadProfile().then(()=>{ loadMonth(); loadDebts(); }).catch(()=>{}); } });
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && state.user && state.household){ loadProfile().then(()=>{ loadCats(); loadMonth(); loadDebts(); }).catch(()=>{}); } });
 
 /* ---------- cálculos ---------- */
 const casaTx = () => state.txs.filter(t=>t.scope==="casa");
@@ -553,7 +565,7 @@ function render(){
 }
 
 function txRow(tx){
-  const c = cat(tx.cat);
+  const c = txCat(tx);
   const b = el("button","item"); b.type="button";
   const d = el("div","dot",c.ab); d.style.background=c.c; d.setAttribute("aria-hidden","true");
   const tt = el("div","t"); tt.appendChild(el("b",null,tx.descr||c.name)); tt.appendChild(el("span",null,c.name));
@@ -623,7 +635,7 @@ function renderEu(){
   const mb=$("#metaBar"); mb.classList.toggle("over", pct>70); mb.firstElementChild.style.width=Math.min(pct,100)+"%";
   $("#houseShare").textContent = t.house ? "Inclui "+money(t.house)+" que você pagou de contas da casa" : "";
   let list = myTx();
-  if(state.filterCat){ list = list.filter(x=>x.cat===state.filterCat); $("#filterBox").hidden=false; $("#filterTxt").textContent="Só: "+cat(state.filterCat).name; }
+  if(state.filterCat){ list = list.filter(x=>x.cat===state.filterCat); $("#filterBox").hidden=false; $("#filterTxt").textContent="Só: "+catOf(state.filterCat,"pessoal","out").name; }
   else $("#filterBox").hidden=true;
   renderList($("#txList"), list, state.filterCat?"Nada nessa categoria":"Nenhum lançamento seu em "+MONTHS[state.m], "Salário, gastos só seus… sua irmã não vê nada daqui.");
 }
@@ -632,12 +644,14 @@ function renderCats(){
   document.querySelectorAll("#catSeg button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.v===state.catKind)));
   const k = state.catKind;
   let src, catsList;
-  if(k==="casa"){ src = casaTx(); catsList = CATS.out; }
-  else if(k==="out"){ src = myTx().filter(t=>t.type==="out").concat(casaTx().filter(t=>t.paid && t.paid_by===state.user.id)); catsList = CATS.out; }
-  else { src = myTx().filter(t=>t.type==="in"); catsList = CATS.in; }
+  const sc = k==="casa" ? "casa" : "pessoal", kd = k==="in" ? "in" : "out";
+  if(k==="casa"){ src = casaTx(); }
+  else if(k==="out"){ src = myTx().filter(t=>t.type==="out").concat(casaTx().filter(t=>t.paid && t.paid_by===state.user.id)); }
+  else { src = myTx().filter(t=>t.type==="in"); }
+  catsList = catsFor(sc, kd);
   const sums={}; src.forEach(t=>{ sums[t.cat]=(sums[t.cat]||0)+Number(t.amount); });
   const total = Object.values(sums).reduce((a,b)=>a+b,0);
-  const rows = Object.keys(sums).map(id=>({c:cat(id),v:sums[id]})).sort((a,b)=>b.v-a.v);
+  const rows = Object.keys(sums).map(id=>({c:catOf(id,sc,kd),v:sums[id]})).sort((a,b)=>b.v-a.v);
   const label = k==="casa"?"Casa":(k==="out"?"Saídas":"Entradas");
 
   const box=$("#donutBox"); box.replaceChildren();
@@ -657,7 +671,9 @@ function renderCats(){
   box.appendChild(lg);
 
   const cl=$("#catList"); cl.replaceChildren();
-  const all = catsList.map(c=>({c, v:sums[c.id]||0})).sort((a,b)=>b.v-a.v);
+  const all = catsList.map(c=>({c, v:sums[c.id]||0}));
+  Object.keys(sums).forEach(id=>{ if(!catsList.some(c=>c.id===id)) all.push({c:catOf(id,sc,kd), v:sums[id]}); });
+  all.sort((a,b)=>b.v-a.v);
   const max = Math.max(1,...all.map(r=>r.v));
   all.forEach(r=>{
     const b=el("button","cat-row"); b.type="button";
@@ -699,11 +715,13 @@ function drawForm(){
   $("#whoField").hidden = fScope!=="casa";
   $("#paidField").style.visibility = (fScope==="pessoal" && fKind==="out") ? "visible" : "hidden";
   const box=$("#fCats"); box.replaceChildren();
-  CATS[fScope==="casa"?"out":fKind].forEach(c=>{
+  catsFor(fScope, fScope==="casa"?"out":fKind).forEach(c=>{
     const b=el("button","chip"); b.type="button"; b.setAttribute("aria-pressed",String(fCat===c.id));
     const i=el("i"); i.style.background=c.c; b.append(i, document.createTextNode(c.name));
     b.addEventListener("click",()=>{ fCat=c.id; drawForm(); }); box.appendChild(b);
   });
+  const nc=el("button","chip","+ Nova categoria"); nc.type="button"; nc.style.borderStyle="dashed";
+  nc.addEventListener("click",()=>openCatManager(fScope==="casa"?"casa":fKind, true)); box.appendChild(nc);
   const wb=$("#fWho"); wb.replaceChildren();
   state.members.forEach(m=>{
     const b=el("button","chip"); b.type="button"; b.setAttribute("aria-pressed",String(fWho===m.id));
@@ -732,7 +750,7 @@ function openTx(tx){
   $("#txSheet").classList.add("open");
   if(!tx) setTimeout(()=>$("#fAmount").focus(),60);
 }
-$("#scopeSeg").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; fScope=b.dataset.v; if(fScope==="casa"){ fKind="out"; } if(fCat && !CATS[fScope==="casa"?"out":fKind].some(c=>c.id===fCat)) fCat=null; drawForm(); });
+$("#scopeSeg").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; fScope=b.dataset.v; if(fScope==="casa"){ fKind="out"; } if(fCat && !catsFor(fScope, fScope==="casa"?"out":fKind).some(c=>c.id===fCat)) fCat=null; drawForm(); });
 $("#kindSeg").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; if(fKind!==b.dataset.v){ fKind=b.dataset.v; fCat=null; } drawForm(); });
 $("#fPaid").addEventListener("click",()=>{ fPaid=!fPaid; $("#fPaid").setAttribute("aria-checked",String(fPaid)); });
 $("#txForm").addEventListener("submit", async e=>{
@@ -795,6 +813,63 @@ $("#debtDelete").addEventListener("click", async ()=>{
   closeSheets(); loadDebts();
 });
 
+/* ---------- gerenciar categorias ---------- */
+let cmKind="casa", cmColor=CAT_COLORS[0], cmFromForm=false;
+function openCatManager(kind, fromForm){
+  cmKind = kind || "casa"; cmFromForm = !!fromForm; $("#cmName").value=""; $("#cmErr").textContent="";
+  const used = catsFor(cmKind==="casa"?"casa":"pessoal", cmKind==="in"?"in":"out").map(c=>c.c);
+  cmColor = CAT_COLORS.find(c=>!used.includes(c)) || CAT_COLORS[0];
+  drawCatManager(); $("#catSheet").classList.add("open");
+}
+function drawCatManager(){
+  document.querySelectorAll("#cmSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===cmKind)));
+  $("#cmHint").textContent = cmKind==="casa" ? "Vocês dois veem e podem mudar estas." : "Só você vê estas.";
+  const list = catsFor(cmKind==="casa"?"casa":"pessoal", cmKind==="in"?"in":"out");
+  const box=$("#cmList"); box.replaceChildren();
+  list.forEach(c=>{
+    const row=el("div","cat-row"); row.style.gridTemplateColumns="40px 1fr auto";
+    const d=el("div","dot",c.ab); d.style.background=c.c; d.setAttribute("aria-hidden","true");
+    const nm=el("b",null,c.name);
+    row.append(d,nm);
+    if(c.key.startsWith("outros")){ row.appendChild(el("span","pct","fixa")); }
+    else {
+      const del=el("button","btn danger","Apagar"); del.type="button";
+      del.addEventListener("click", async ()=>{
+        if(del.dataset.confirm!=="1"){ del.dataset.confirm="1"; del.textContent="Confirmar"; return; }
+        del.disabled=true;
+        const { error } = await sb.from("categories").delete().eq("id",c.dbid);
+        if(error){ $("#cmErr").textContent=friendlyErr(error); del.disabled=false; return; }
+        if(fCat===c.key) fCat=null;
+        await loadCats(); loadMonth();
+      });
+      row.appendChild(del);
+    }
+    box.appendChild(row);
+  });
+  const cb=$("#cmColors"); cb.replaceChildren();
+  CAT_COLORS.forEach(col=>{ const b=el("button","chip"); b.type="button"; b.setAttribute("aria-label","Cor "+col); b.setAttribute("aria-pressed",String(col===cmColor));
+    const i=el("i"); i.style.background=col; i.style.width="18px"; i.style.height="18px"; i.style.borderRadius="6px"; b.appendChild(i); b.style.padding="6px";
+    b.addEventListener("click",()=>{ cmColor=col; drawCatManager(); }); cb.appendChild(b); });
+}
+$("#cmSeg").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; openCatManager(b.dataset.v, cmFromForm); });
+$("#manageCats").addEventListener("click",()=>openCatManager(state.catKind,false));
+$("#catForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const name=$("#cmName").value.trim();
+  if(!name){ $("#cmErr").textContent="Escreva o nome da categoria."; return; }
+  const scope = cmKind==="casa"?"casa":"pessoal", kind = cmKind==="in"?"in":"out";
+  if(catsFor(scope,kind).some(c=>c.name.toLowerCase()===name.toLowerCase())){ $("#cmErr").textContent="Já existe uma categoria com esse nome."; return; }
+  const key = "c-"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const row = scope==="casa" ? {household_id:state.household.id, kind:"out", key, name, color:cmColor} : {user_id:state.user.id, kind, key, name, color:cmColor};
+  const btn=$("#cmAdd"); btn.disabled=true;
+  const { error } = await sb.from("categories").insert(row);
+  btn.disabled=false;
+  if(error){ $("#cmErr").textContent=friendlyErr(error); return; }
+  await loadCats();
+  if(cmFromForm && $("#txSheet").classList.contains("open")){ fCat=key; drawForm(); $("#catSheet").classList.remove("open"); return; }
+  $("#cmName").value=""; drawCatManager();
+});
+
 /* ---------- conta e casa ---------- */
 function openSettings(){
   $("#sName").value = state.profile ? state.profile.name : "";
@@ -827,8 +902,8 @@ function closeSheets(){
   $("#txDelete").dataset.confirm=""; $("#txDelete").textContent="Apagar lançamento";
   $("#debtDelete").dataset.confirm=""; $("#debtDelete").textContent="Apagar dívida";
 }
-document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeSheets));
-document.querySelectorAll(".sheet-bg").forEach(bg=>bg.addEventListener("click",e=>{ if(e.target===bg) closeSheets(); }));
+document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>{ const bg=b.closest(".sheet-bg"); if(bg.id==="catSheet"&&$("#txSheet").classList.contains("open")) bg.classList.remove("open"); else closeSheets(); }));
+document.querySelectorAll(".sheet-bg").forEach(bg=>bg.addEventListener("click",e=>{ if(e.target!==bg) return; if(bg.id==="catSheet"&&$("#txSheet").classList.contains("open")) bg.classList.remove("open"); else closeSheets(); }));
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheets(); });
 $("#fab").addEventListener("click",()=>{ if(state.view==="debts") openDebt(null); else openTx(null); });
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{ state.view=b.dataset.view; if(state.view!=="eu") state.filterCat=null; render(); window.scrollTo(0,0); }));
