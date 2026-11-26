@@ -161,6 +161,31 @@ button{cursor:pointer}
 .mv .d{font-size:13px;color:var(--muted)}
 .mv .x{border:0;background:none;color:var(--muted);font-size:18px;padding:2px 6px}
 
+/* casa: abas internas, fixas e compras */
+.fx{display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;padding:12px 14px;border:0;border-bottom:1px solid var(--line);background:none;width:100%;text-align:left}
+.fx:last-child{border-bottom:0}
+.fx .t{min-width:0}.fx .t b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fx .t span{font-size:13px;color:var(--muted)}
+.fx .t span.late{color:var(--out);font-weight:700}
+.fx .r{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.fx .go2{border:0;background:var(--accent);color:var(--hero-ink);font-weight:700;border-radius:10px;padding:7px 12px;font-size:13px}
+.pend-card{border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+.pend-h{padding:12px 14px 0;font-size:13px;font-weight:700;color:var(--warn)}
+.shop-add{display:grid;grid-template-columns:1fr 84px auto;gap:8px}
+.shop-add input{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px;width:100%;min-width:0}
+.shop{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.shop:last-child{border-bottom:0}
+.shop .ck{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:none;display:grid;place-items:center;padding:0;color:#fff}
+.shop .ck svg{width:16px;height:16px;opacity:0}
+.shop.done .ck{background:var(--in);border-color:var(--in)}
+.shop.done .ck svg{opacity:1}
+.shop .nm{min-width:0;border:0;background:none;text-align:left;padding:0}
+.shop .nm b{display:block;font-weight:600;overflow-wrap:anywhere}
+.shop .nm span{font-size:12px;color:var(--muted)}
+.shop.done .nm b{text-decoration:line-through;color:var(--muted);font-weight:500}
+.shop .x{border:0;background:none;color:var(--muted);font-size:18px;padding:2px 6px}
+.sub-h{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:2px 4px}
+
 /* abas */
 .tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom));z-index:5}
 .tabs .in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 68px 1fr 1fr;gap:2px;align-items:center}
@@ -251,8 +276,31 @@ button{cursor:pointer}
       <div class="hint" id="cPend"></div>
     </div>
     <div class="banner" id="inviteBanner" hidden><span id="inviteTxt"></span><button type="button" id="inviteBtn">Ver código</button></div>
-    <h2>Contas da casa <small id="cCount"></small></h2>
-    <div id="casaList"></div>
+    <div class="seg" id="casaSeg" role="group" aria-label="Parte da casa">
+      <button type="button" data-v="gastos" aria-pressed="true">Gastos</button>
+      <button type="button" data-v="fixas" aria-pressed="false">Contas fixas</button>
+      <button type="button" data-v="compras" aria-pressed="false">Compras</button>
+    </div>
+    <div id="paneGastos" class="section">
+      <div id="fixPending"></div>
+      <h2>Gastos da casa <small id="cCount"></small></h2>
+      <div id="casaList"></div>
+    </div>
+    <div id="paneFixas" class="section" hidden>
+      <h2>Contas fixas <small>aparecem todo mês</small></h2>
+      <div class="card" id="fixList"></div>
+      <button class="btn full" type="button" id="addFix">Adicionar conta fixa</button>
+    </div>
+    <div id="paneCompras" class="section" hidden>
+      <form class="shop-add" id="shopForm" novalidate>
+        <input id="shopName" maxlength="60" autocomplete="off" placeholder="O que está faltando?" aria-label="Item">
+        <input id="shopQty" maxlength="20" autocomplete="off" placeholder="Qtd." aria-label="Quantidade">
+        <button class="btn primary" type="submit">Pôr</button>
+      </form>
+      <div class="err" id="shopErr"></div>
+      <div id="shopList"></div>
+      <button class="btn danger full" type="button" id="shopClear" hidden>Limpar comprados</button>
+    </div>
   </section>
 
   <!-- EU -->
@@ -287,8 +335,8 @@ button{cursor:pointer}
   <section id="view-cats" class="section" hidden>
     <div class="seg" id="catSeg" role="group" aria-label="Ver categorias de">
       <button type="button" data-v="casa" aria-pressed="true">Casa</button>
-      <button type="button" data-v="out" aria-pressed="false">Minhas saídas</button>
-      <button type="button" data-v="in" aria-pressed="false">Entradas</button>
+      <button type="button" data-v="out" aria-pressed="false">Meus gastos</button>
+      <button type="button" data-v="in" aria-pressed="false">Minhas entradas</button>
     </div>
     <div class="card donut-wrap" id="donutBox"></div>
     <h2>Por categoria <button class="link" type="button" id="manageCats">Criar ou apagar</button></h2>
@@ -322,10 +370,6 @@ button{cursor:pointer}
   <form class="sheet" id="txForm" novalidate>
     <div class="grab"></div>
     <h3><span id="txTitle">Novo lançamento</span><button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h3>
-    <div class="seg" id="scopeSeg" role="group" aria-label="De quem é">
-      <button type="button" data-v="casa" aria-pressed="true">Da casa</button>
-      <button type="button" data-v="pessoal" aria-pressed="false">Só meu</button>
-    </div>
     <div class="seg kind" id="kindSeg" role="group" aria-label="Tipo">
       <button type="button" data-v="out" aria-pressed="true">Saída</button>
       <button type="button" data-v="in" aria-pressed="false">Entrada</button>
@@ -373,6 +417,24 @@ button{cursor:pointer}
     <div class="err" id="setErr"></div>
     <button class="btn primary full" type="submit">Salvar nome</button>
     <button class="btn danger full" type="button" id="logout">Sair da conta</button>
+  </form>
+</div>
+
+<!-- folha: conta fixa -->
+<div class="sheet-bg" id="fixSheet" role="dialog" aria-modal="true" aria-labelledby="fixTitle">
+  <form class="sheet" id="fixForm" novalidate>
+    <div class="grab"></div>
+    <h3><span id="fixTitle">Nova conta fixa</span><button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h3>
+    <p class="note" style="text-align:left;margin:0">Ela aparece todo mês em Gastos pra vocês lançarem quando pagar. O valor pode mudar na hora de lançar (tipo a luz).</p>
+    <div class="field"><label for="fxName">Nome</label><input id="fxName" maxlength="40" autocomplete="off" placeholder="Ex.: Aluguel, Luz, Internet"></div>
+    <div class="row2">
+      <div class="field"><label for="fxAmount">Valor (R$)</label><input id="fxAmount" inputmode="decimal" placeholder="0,00"></div>
+      <div class="field"><label for="fxDay">Vence todo dia</label><input id="fxDay" inputmode="numeric" maxlength="2" placeholder="10"></div>
+    </div>
+    <div class="field"><span class="lab">Categoria</span><div class="chips" id="fxCats"></div></div>
+    <div class="err" id="fxErr"></div>
+    <button class="btn primary full" type="submit" id="fxSave">Salvar</button>
+    <button class="btn danger full" type="button" id="fxDelete" hidden>Apagar conta fixa</button>
   </form>
 </div>
 
@@ -472,7 +534,7 @@ function friendlyErr(e){
 /* ---------- estado ---------- */
 const now = new Date();
 const state = { y:now.getFullYear(), m:now.getMonth(), view:"casa", catKind:"casa", filterCat:null,
-  user:null, profile:null, household:null, members:[], txs:[], debts:[], cats:[], saves:[], loading:false };
+  user:null, profile:null, household:null, members:[], txs:[], debts:[], cats:[], saves:[], shop:[], fixed:[], casaTab:"gastos", loading:false };
 function memberName(id){ const p = state.members.find(m=>m.id===id); return p ? firstName(p.name) : "Alguém"; }
 function memberColor(id){ const i = state.members.findIndex(m=>m.id===id); return PCOLORS[i<0?3:i%PCOLORS.length]; }
 
@@ -558,7 +620,7 @@ async function onSession(session){
   }
   enterApp();
 }
-function enterApp(){ show("app"); render(); loadCats(); loadMonth(); loadDebts(); loadSaves(); }
+function enterApp(){ show("app"); render(); loadCats(); loadMonth(); loadDebts(); loadSaves(); loadShop(); loadFixed(); }
 
 /* ---------- dados ---------- */
 function monthRange(){
@@ -580,6 +642,14 @@ async function loadCats(){
   const { data, error } = await sb.from("categories").select("*").order("created_at");
   if(!error){ state.cats = data||[]; render(); if($("#txSheet").classList.contains("open")) drawForm(); if($("#catSheet").classList.contains("open")) drawCatManager(); }
 }
+async function loadShop(){
+  const { data, error } = await sb.from("shopping_items").select("*").order("created_at");
+  if(!error){ state.shop = data||[]; render(); }
+}
+async function loadFixed(){
+  const { data, error } = await sb.from("recurring_bills").select("*").order("due_day");
+  if(!error){ state.fixed = data||[]; render(); }
+}
 async function loadSaves(){
   const { data, error } = await sb.from("savings_moves").select("*").order("date",{ascending:false}).order("created_at",{ascending:false});
   if(!error){ state.saves = data||[]; render(); if($("#svSheet").classList.contains("open")) drawSaveList(); }
@@ -588,7 +658,7 @@ async function loadDebts(){
   const { data, error } = await sb.from("debts").select("*").order("created_at");
   if(!error){ state.debts = data||[]; render(); }
 }
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden && state.user && state.household){ loadProfile().then(()=>{ loadCats(); loadMonth(); loadDebts(); loadSaves(); }).catch(()=>{}); } });
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && state.user && state.household){ loadProfile().then(()=>{ loadCats(); loadMonth(); loadDebts(); loadSaves(); loadShop(); loadFixed(); }).catch(()=>{}); } });
 
 /* ---------- cálculos ---------- */
 const casaTx = () => state.txs.filter(t=>t.scope==="casa");
@@ -666,12 +736,20 @@ function renderCasa(){
     ppl.appendChild(card);
   });
   if(state.members.length===1){ const card=el("div","person"); card.append(el("div","nm","Falta alguém"), el("div","sm","Passe o código da casa pra ela entrar")); ppl.appendChild(card); }
-  $("#cPend").textContent = pend>0 ? "Falta pagar "+money(pend)+" em contas da casa" : (total? "Todas as contas do mês estão pagas" : "");
+  const fixPend = pendingFixed();
+  const fixEst = fixPend.reduce((a,b)=>a+Number(b.amount),0);
+  const allPend = pend + fixEst;
+  $("#cPend").textContent = allPend>0 ? "Falta pagar "+money(allPend)+(fixEst?" (com "+fixPend.length+(fixPend.length===1?" conta fixa ainda não lançada)":" contas fixas ainda não lançadas)"):"") : (total? "Todas as contas do mês estão pagas" : "");
+  document.querySelectorAll("#casaSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===state.casaTab)));
+  $("#paneGastos").hidden = state.casaTab!=="gastos";
+  $("#paneFixas").hidden = state.casaTab!=="fixas";
+  $("#paneCompras").hidden = state.casaTab!=="compras";
+  renderFixPending(fixPend); renderFixList(); renderShop();
   const alone = state.members.length<2;
   $("#inviteBanner").hidden = !alone;
   if(alone) $("#inviteTxt").textContent = "Só você está na casa por enquanto.";
   $("#cCount").textContent = list.length ? list.length+(list.length===1?" conta":" contas") : "";
-  renderList($("#casaList"), list, "Nenhuma conta da casa em "+MONTHS[state.m], "Toque no + pra lançar aluguel, luz, mercado…");
+  renderList($("#casaList"), list, "Nenhum gasto da casa em "+MONTHS[state.m], "Toque no + pra lançar mercado, gás, farmácia…");
 }
 
 function renderEu(){
@@ -764,9 +842,8 @@ function renderDebts(){
 }
 
 /* ---------- folha de lançamento ---------- */
-let editing=null, fScope="casa", fKind="out", fCat=null, fPaid=true, fWho=null;
+let editing=null, fScope="casa", fKind="out", fCat=null, fPaid=true, fWho=null, fRec=null;
 function drawForm(){
-  document.querySelectorAll("#scopeSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===fScope)));
   document.querySelectorAll("#kindSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===fKind)));
   $("#kindSeg").hidden = fScope==="casa";
   $("#whoField").hidden = fScope!=="casa";
@@ -788,26 +865,25 @@ function drawForm(){
   const nb=el("button","chip","Ainda não pago"); nb.type="button"; nb.setAttribute("aria-pressed",String(fWho===null));
   nb.addEventListener("click",()=>{ fWho=null; drawForm(); }); wb.appendChild(nb);
 }
-function openTx(tx){
-  editing = tx;
-  fScope = tx ? tx.scope : (state.view==="eu" ? "pessoal" : "casa");
+function openTx(tx, opts){
+  opts = opts || {};
+  editing = tx; fRec = opts.recurring || null;
+  fScope = tx ? tx.scope : (fRec ? "casa" : (opts.scope || (state.view==="casa" ? "casa" : "pessoal")));
   fKind = tx ? tx.type : "out";
-  fCat = tx ? tx.cat : null;
+  fCat = tx ? tx.cat : (fRec ? fRec.cat : null);
   fPaid = tx ? !!tx.paid : true;
   fWho = tx ? (tx.paid ? tx.paid_by : null) : state.user.id;
-  $("#scopeSeg").hidden = !!tx;
-  $("#txTitle").textContent = tx ? (tx.scope==="casa"?"Conta da casa":"Seu lançamento") : "Novo lançamento";
-  $("#fAmount").value = tx ? toInputMoney(tx.amount) : "";
-  $("#fDesc").value = tx ? (tx.descr||"") : "";
+  $("#txTitle").textContent = tx ? (tx.scope==="casa"?"Gasto da casa":"Seu lançamento") : (fRec ? "Lançar "+fRec.name : (fScope==="casa"?"Novo gasto da casa":"Novo lançamento seu"));
+  $("#fAmount").value = tx ? toInputMoney(tx.amount) : (fRec ? toInputMoney(fRec.amount) : "");
+  $("#fDesc").value = tx ? (tx.descr||"") : (fRec ? fRec.name : "");
   const cur = state.y+"-"+pad(state.m+1);
-  $("#fDate").value = tx ? tx.date : (todayISO().slice(0,7)===cur ? todayISO() : cur+"-01");
+  $("#fDate").value = tx ? tx.date : (fRec ? (todayISO().slice(0,7)===cur ? todayISO() : fixDate(fRec)) : (todayISO().slice(0,7)===cur ? todayISO() : cur+"-01"));
   $("#fPaid").setAttribute("aria-checked",String(fPaid));
   $("#txDelete").hidden = !tx; $("#txErr").textContent="";
   drawForm();
   $("#txSheet").classList.add("open");
-  if(!tx) setTimeout(()=>$("#fAmount").focus(),60);
+  if(!tx && !fRec) setTimeout(()=>$("#fAmount").focus(),60);
 }
-$("#scopeSeg").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; fScope=b.dataset.v; if(fScope==="casa"){ fKind="out"; } if(fCat && !catsFor(fScope, fScope==="casa"?"out":fKind).some(c=>c.id===fCat)) fCat=null; drawForm(); });
 $("#kindSeg").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; if(fKind!==b.dataset.v){ fKind=b.dataset.v; fCat=null; } drawForm(); });
 $("#fPaid").addEventListener("click",()=>{ fPaid=!fPaid; $("#fPaid").setAttribute("aria-checked",String(fPaid)); });
 $("#txForm").addEventListener("submit", async e=>{
@@ -820,6 +896,7 @@ $("#txForm").addEventListener("submit", async e=>{
     household_id: fScope==="casa" ? state.household.id : null,
     paid: fScope==="casa" ? fWho!==null : (fKind==="in" ? true : fPaid),
     paid_by: fScope==="casa" ? fWho : null };
+  if(!editing && fRec){ row.recurring_id = fRec.id; }
   const btn=$("#txSave"); btn.disabled=true;
   const q = editing ? sb.from("transactions").update(row).eq("id",editing.id) : sb.from("transactions").insert(row);
   const { error } = await q;
@@ -827,7 +904,7 @@ $("#txForm").addEventListener("submit", async e=>{
   if(error){ $("#txErr").textContent=friendlyErr(error); return; }
   closeSheets();
   const [yy,mm]=date.split("-").map(Number); state.y=yy; state.m=mm-1;
-  if(!editing) state.view = fScope==="casa" ? "casa" : "eu";
+  if(!editing){ state.view = fScope==="casa" ? "casa" : "eu"; if(fScope==="casa") state.casaTab="gastos"; }
   render(); loadMonth();
 });
 $("#txDelete").addEventListener("click", async ()=>{
@@ -869,6 +946,145 @@ $("#debtDelete").addEventListener("click", async ()=>{
   if(error){ $("#debtErr").textContent=friendlyErr(error); return; }
   closeSheets(); loadDebts();
 });
+
+/* ---------- contas fixas ---------- */
+function daysIn(y,m){ return new Date(y,m+1,0).getDate(); }
+function fixDate(b){ return state.y+"-"+pad(state.m+1)+"-"+pad(Math.min(b.due_day, daysIn(state.y,state.m))); }
+function pendingFixed(){
+  const [a,bEnd] = monthRange();
+  return state.fixed.filter(b=>{
+    const startMonth = String(b.created_at).slice(0,7)+"-01";
+    if(bEnd <= startMonth) return false;
+    return !state.txs.some(t=>t.recurring_id===b.id);
+  });
+}
+function fixRow(b, opts){
+  const c = catOf(b.cat,"casa","out");
+  const row = el(opts.button?"button":"div","fx"); if(opts.button) row.type="button";
+  const d = el("div","dot",c.ab); d.style.background=c.c; d.setAttribute("aria-hidden","true");
+  const t = el("div","t"); t.appendChild(el("b",null,b.name));
+  t.appendChild(opts.sub);
+  const r = el("div","r"); r.appendChild(el("b","num",money(b.amount)));
+  if(opts.right) r.appendChild(opts.right);
+  row.append(d,t,r); return row;
+}
+function renderFixPending(list){
+  const box=$("#fixPending"); box.replaceChildren();
+  if(!list.length) return;
+  const card=el("div","card pend-card");
+  card.appendChild(el("div","pend-h", list.length===1?"1 conta fixa pra lançar":list.length+" contas fixas pra lançar"));
+  const now=new Date(); const isCur = now.getFullYear()===state.y && now.getMonth()===state.m;
+  const isPast = new Date(state.y,state.m+1,1) <= now;
+  list.forEach(b=>{
+    const day = Math.min(b.due_day, daysIn(state.y,state.m));
+    const late = isPast || (isCur && now.getDate()>day);
+    const sub = el("span", late?"late":null, (late?"Venceu dia ":"Vence dia ")+day);
+    const go = el("button","go2","Lançar"); go.type="button";
+    go.addEventListener("click",()=>openTx(null,{recurring:b}));
+    card.appendChild(fixRow(b,{sub, right:go}));
+  });
+  box.appendChild(card);
+}
+function renderFixList(){
+  const box=$("#fixList"); box.replaceChildren();
+  if(!state.fixed.length){ const e=el("div","empty"); e.append(el("b",null,"Nenhuma conta fixa ainda"), el("span",null,"Cadastre aluguel, luz, internet… e elas aparecem sozinhas todo mês.")); box.appendChild(e); return; }
+  state.fixed.forEach(b=>{
+    const done = state.txs.some(t=>t.recurring_id===b.id);
+    const pill = el("span","pill "+(done?"ok":"pend"), done?"Lançada":"Falta lançar");
+    const row = fixRow(b,{button:true, sub: el("span",null,"Todo dia "+b.due_day+" · "+catOf(b.cat,"casa","out").name), right:pill});
+    row.addEventListener("click",()=>openFix(b));
+    box.appendChild(row);
+  });
+}
+let editingFix=null, fxCat=null;
+function drawFixCats(){
+  const box=$("#fxCats"); box.replaceChildren();
+  catsFor("casa","out").forEach(c=>{
+    const b=el("button","chip"); b.type="button"; b.setAttribute("aria-pressed",String(fxCat===c.id));
+    const i=el("i"); i.style.background=c.c; b.append(i, document.createTextNode(c.name));
+    b.addEventListener("click",()=>{ fxCat=c.id; drawFixCats(); }); box.appendChild(b);
+  });
+}
+function openFix(b){
+  editingFix=b||null; fxCat = b ? b.cat : "contas";
+  $("#fixTitle").textContent = b ? "Editar conta fixa" : "Nova conta fixa";
+  $("#fxName").value = b?b.name:""; $("#fxAmount").value = b?toInputMoney(b.amount):""; $("#fxDay").value = b?b.due_day:"";
+  $("#fxDelete").hidden=!b; $("#fxErr").textContent="";
+  drawFixCats(); $("#fixSheet").classList.add("open");
+  if(!b) setTimeout(()=>$("#fxName").focus(),60);
+}
+$("#addFix").addEventListener("click",()=>openFix(null));
+$("#fixForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const name=$("#fxName").value.trim(), amount=parseMoney($("#fxAmount").value), day=parseInt($("#fxDay").value,10);
+  const er=$("#fxErr");
+  if(!name){ er.textContent="Dê um nome, tipo Aluguel."; return; }
+  if(!(amount>0)){ er.textContent="Digite o valor de costume. Dá pra mudar na hora de lançar."; return; }
+  if(!(day>=1 && day<=31)){ er.textContent="O dia de vencimento vai de 1 a 31."; return; }
+  if(!fxCat){ er.textContent="Escolha uma categoria."; return; }
+  const row={name, amount, due_day:day, cat:fxCat};
+  const btn=$("#fxSave"); btn.disabled=true;
+  const { error } = editingFix ? await sb.from("recurring_bills").update(row).eq("id",editingFix.id) : await sb.from("recurring_bills").insert(Object.assign({household_id:state.household.id},row));
+  btn.disabled=false;
+  if(error){ er.textContent=friendlyErr(error); return; }
+  closeSheets(); loadFixed();
+});
+$("#fxDelete").addEventListener("click", async ()=>{
+  const b=$("#fxDelete");
+  if(b.dataset.confirm!=="1"){ b.dataset.confirm="1"; b.textContent="Toque de novo pra apagar (os gastos já lançados ficam)"; return; }
+  const { error } = await sb.from("recurring_bills").delete().eq("id",editingFix.id);
+  if(error){ $("#fxErr").textContent=friendlyErr(error); return; }
+  closeSheets(); loadFixed();
+});
+
+/* ---------- lista de compras ---------- */
+function renderShop(){
+  const box=$("#shopList"); box.replaceChildren();
+  const todo = state.shop.filter(i=>!i.done), done = state.shop.filter(i=>i.done);
+  $("#shopClear").hidden = !done.length;
+  if(!state.shop.length){ const e=el("div","card empty"); e.append(el("b",null,"Lista vazia"), el("span",null,"Escreva o que está faltando em casa. Os dois veem a mesma lista.")); box.appendChild(e); return; }
+  const mk = (items, title)=>{
+    if(!items.length) return;
+    box.appendChild(el("div","sub-h",title));
+    const card=el("div","card");
+    items.forEach(it=>{
+      const r=el("div","shop"+(it.done?" done":""));
+      const ck=el("button","ck"); ck.type="button"; ck.setAttribute("aria-label",(it.done?"Desmarcar ":"Marcar como comprado: ")+it.name);
+      ck.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"/></svg>';
+      const nm=el("button","nm"); nm.type="button";
+      nm.appendChild(el("b",null,it.name+(it.qty?" · "+it.qty:"")));
+      if(state.members.length>1 && it.created_by) nm.appendChild(el("span",null,"pôs: "+memberName(it.created_by)));
+      const toggle = async ()=>{ it.done=!it.done; renderShop(); const { error } = await sb.from("shopping_items").update({done:it.done}).eq("id",it.id); if(error){ $("#shopErr").textContent=friendlyErr(error); loadShop(); } };
+      ck.addEventListener("click",toggle); nm.addEventListener("click",toggle);
+      const x=el("button","x","×"); x.type="button"; x.setAttribute("aria-label","Tirar da lista: "+it.name);
+      x.addEventListener("click", async ()=>{ state.shop=state.shop.filter(i=>i.id!==it.id); renderShop(); const { error } = await sb.from("shopping_items").delete().eq("id",it.id); if(error){ $("#shopErr").textContent=friendlyErr(error); loadShop(); } });
+      r.append(ck,nm,x); card.appendChild(r);
+    });
+    box.appendChild(card);
+  };
+  mk(todo, todo.length===1?"Falta 1 item":"Faltam "+todo.length+" itens");
+  mk(done, "Comprados");
+}
+$("#shopForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const name=$("#shopName").value.trim(), qty=$("#shopQty").value.trim();
+  $("#shopErr").textContent="";
+  if(!name){ $("#shopErr").textContent="Escreva o nome do item."; return; }
+  $("#shopName").value=""; $("#shopQty").value=""; $("#shopName").focus();
+  const { error } = await sb.from("shopping_items").insert({household_id:state.household.id, name:name.slice(0,60), qty:qty.slice(0,20)});
+  if(error){ $("#shopErr").textContent=friendlyErr(error); }
+  loadShop();
+});
+$("#shopClear").addEventListener("click", async ()=>{
+  const b=$("#shopClear");
+  if(b.dataset.confirm!=="1"){ b.dataset.confirm="1"; b.textContent="Toque de novo pra limpar"; return; }
+  b.dataset.confirm=""; b.textContent="Limpar comprados";
+  const ids = state.shop.filter(i=>i.done).map(i=>i.id);
+  const { error } = await sb.from("shopping_items").delete().in("id",ids);
+  if(error) $("#shopErr").textContent=friendlyErr(error);
+  loadShop();
+});
+$("#casaSeg").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; state.casaTab=b.dataset.v; render(); });
 
 /* ---------- poupança ---------- */
 let svKind="in";
@@ -1006,11 +1222,17 @@ function closeSheets(){
   document.querySelectorAll(".sheet-bg").forEach(s=>s.classList.remove("open"));
   $("#txDelete").dataset.confirm=""; $("#txDelete").textContent="Apagar lançamento";
   $("#debtDelete").dataset.confirm=""; $("#debtDelete").textContent="Apagar dívida";
+  $("#fxDelete").dataset.confirm=""; $("#fxDelete").textContent="Apagar conta fixa";
 }
 document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>{ const bg=b.closest(".sheet-bg"); if(bg.id==="catSheet"&&$("#txSheet").classList.contains("open")) bg.classList.remove("open"); else closeSheets(); }));
 document.querySelectorAll(".sheet-bg").forEach(bg=>bg.addEventListener("click",e=>{ if(e.target!==bg) return; if(bg.id==="catSheet"&&$("#txSheet").classList.contains("open")) bg.classList.remove("open"); else closeSheets(); }));
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheets(); });
-$("#fab").addEventListener("click",()=>{ if(state.view==="debts") openDebt(null); else openTx(null); });
+$("#fab").addEventListener("click",()=>{
+  if(state.view==="debts") return openDebt(null);
+  if(state.view==="casa" && state.casaTab==="fixas") return openFix(null);
+  if(state.view==="casa" && state.casaTab==="compras"){ $("#shopName").focus(); return; }
+  openTx(null, state.view==="cats" ? {scope: state.catKind==="casa" ? "casa" : "pessoal"} : {});
+});
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{ state.view=b.dataset.view; if(state.view!=="eu") state.filterCat=null; render(); window.scrollTo(0,0); }));
 $("#catSeg").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; state.catKind=b.dataset.v; render(); });
 $("#clearFilter").addEventListener("click",()=>{ state.filterCat=null; render(); });
