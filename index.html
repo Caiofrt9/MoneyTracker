@@ -20,14 +20,14 @@
 :root{
   --bg:#eef2ee; --surface:#ffffff; --ink:#13201a; --muted:#66756d; --line:#dde4de;
   --accent:#0d5c46; --accent-soft:#d6ebe2; --in:#1d8556; --out:#c2413a; --warn:#b7791f;
-  --p1:#0d5c46; --p2:#d9822b; --hero-ink:#f2f7f4;
+  --p1:#0d5c46; --p2:#d9822b; --hero-ink:#f2f7f4; --c-in:#1d8556; --c-out:#d9822b;
   --font-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
   --font-body:"Figtree","Segoe UI",system-ui,sans-serif;
   --radius:18px; color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
   :root{ --bg:#0e1512; --surface:#17211c; --ink:#e6efe9; --muted:#93a39a; --line:#26332c;
-    --accent:#2f9e78; --accent-soft:#1d3a2f; --in:#4cc28a; --out:#ef7a70; --warn:#e0a84a; --p1:#2f9e78; --p2:#e6994a; color-scheme:dark; }
+    --accent:#2f9e78; --accent-soft:#1d3a2f; --in:#4cc28a; --out:#ef7a70; --warn:#e0a84a; --p1:#2f9e78; --p2:#e6994a; --c-in:#3fb27c; --c-out:#cc7a2a; color-scheme:dark; }
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
@@ -186,6 +186,26 @@ button{cursor:pointer}
 .shop .x{border:0;background:none;color:var(--muted);font-size:18px;padding:2px 6px}
 .sub-h{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:2px 4px}
 
+/* gráficos de tendência */
+.trend{padding:16px;display:flex;flex-direction:column;gap:10px}
+.trend .th{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.trend .th b{font-family:var(--display);font-size:16px}
+.trend .th span{font-size:12px;color:var(--muted)}
+.trend .msg{font-size:14px;line-height:1.4;display:flex;gap:8px;align-items:flex-start}
+.trend .msg .ar{flex:none;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-weight:700;font-size:13px}
+.trend .msg .ar.up{background:color-mix(in srgb,var(--out) 16%,transparent);color:var(--out)}
+.trend .msg .ar.down{background:color-mix(in srgb,var(--in) 16%,transparent);color:var(--in)}
+.trend .msg .ar.eq{background:var(--line);color:var(--muted)}
+.trend svg{width:100%;height:auto;display:block;overflow:visible}
+.trend svg text{font-family:var(--font-body);fill:var(--muted);font-size:11px}
+.trend svg text.v{fill:var(--ink);font-weight:700;font-size:11.5px}
+.trend svg text.ml.sel{fill:var(--ink);font-weight:700}
+.trend svg .hit{fill:transparent;cursor:pointer}
+.trend .lg{display:flex;gap:14px;font-size:12.5px;color:var(--muted)}
+.trend .lg span{display:inline-flex;align-items:center;gap:6px}
+.trend .lg i{width:10px;height:10px;border-radius:3px}
+.trend .note2{font-size:12px;color:var(--muted)}
+
 /* abas */
 .tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom));z-index:5}
 .tabs .in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 68px 1fr 1fr;gap:2px;align-items:center}
@@ -283,6 +303,7 @@ button{cursor:pointer}
     </div>
     <div id="paneGastos" class="section">
       <div id="fixPending"></div>
+      <div class="card trend" id="casaTrend"></div>
       <h2>Gastos da casa <small id="cCount"></small></h2>
       <div id="casaList"></div>
     </div>
@@ -326,6 +347,7 @@ button{cursor:pointer}
       <div class="acts"><button class="btn primary" type="button" id="svIn">Guardar</button><button class="btn" type="button" id="svOut">Tirar</button></div>
       <button class="link" type="button" id="svHist" style="align-self:flex-start">Ver histórico</button>
     </div>
+    <div class="card trend" id="euTrend"></div>
     <div class="filter" id="filterBox" hidden><span id="filterTxt"></span><button id="clearFilter" type="button">Limpar</button></div>
     <h2>Seus lançamentos <small id="countTxt">só você vê</small></h2>
     <div id="txList"></div>
@@ -534,7 +556,7 @@ function friendlyErr(e){
 /* ---------- estado ---------- */
 const now = new Date();
 const state = { y:now.getFullYear(), m:now.getMonth(), view:"casa", catKind:"casa", filterCat:null,
-  user:null, profile:null, household:null, members:[], txs:[], debts:[], cats:[], saves:[], shop:[], fixed:[], casaTab:"gastos", loading:false };
+  user:null, profile:null, household:null, members:[], txs:[], debts:[], cats:[], saves:[], shop:[], fixed:[], casaTab:"gastos", trend:[], pickCasa:5, pickEu:5, loading:false };
 function memberName(id){ const p = state.members.find(m=>m.id===id); return p ? firstName(p.name) : "Alguém"; }
 function memberColor(id){ const i = state.members.findIndex(m=>m.id===id); return PCOLORS[i<0?3:i%PCOLORS.length]; }
 
@@ -629,7 +651,20 @@ function monthRange(){
   return [a, ny+"-"+pad(nm)+"-01"];
 }
 let loadSeq = 0;
+let trendSeq=0;
+function trendMonths(){
+  const out=[]; for(let i=5;i>=0;i--){ const d=new Date(state.y, state.m-i, 1); out.push({y:d.getFullYear(), m:d.getMonth(), key:d.getFullYear()+"-"+pad(d.getMonth()+1)}); }
+  return out;
+}
+async function loadTrend(){
+  const seq=++trendSeq; const ms=trendMonths();
+  const a=ms[0].key+"-01"; const [,b]=monthRange();
+  const { data, error } = await sb.from("transactions").select("date,amount,type,scope,paid,paid_by,user_id").gte("date",a).lt("date",b);
+  if(seq!==trendSeq || error) return;
+  state.trend = data||[]; state.pickCasa=5; state.pickEu=5; render();
+}
 async function loadMonth(){
+  loadTrend();
   const seq = ++loadSeq; const [a,b] = monthRange();
   $("#storeNote").textContent = "Carregando…";
   const { data, error } = await sb.from("transactions").select("*").gte("date",a).lt("date",b).order("date",{ascending:false}).order("created_at",{ascending:false});
@@ -744,7 +779,7 @@ function renderCasa(){
   $("#paneGastos").hidden = state.casaTab!=="gastos";
   $("#paneFixas").hidden = state.casaTab!=="fixas";
   $("#paneCompras").hidden = state.casaTab!=="compras";
-  renderFixPending(fixPend); renderFixList(); renderShop();
+  renderFixPending(fixPend); renderFixList(); renderShop(); renderCasaTrend();
   const alone = state.members.length<2;
   $("#inviteBanner").hidden = !alone;
   if(alone) $("#inviteTxt").textContent = "Só você está na casa por enquanto.";
@@ -760,6 +795,7 @@ function renderEu(){
   $("#metaTxt").textContent = t.inn>0 ? "Gastos: "+pct+"% da renda" : "Gastos: lance suas entradas";
   const mb=$("#metaBar"); mb.classList.toggle("over", pct>70); mb.firstElementChild.style.width=Math.min(pct,100)+"%";
   $("#houseShare").textContent = t.house ? "Inclui "+money(t.house)+" que você pagou de contas da casa" : "";
+  renderEuTrend();
   const [ma,mb2] = monthRange();
   const svTotal = state.saves.reduce((a,m)=>a+Number(m.amount),0);
   const svMonth = state.saves.filter(m=>m.date>=ma && m.date<mb2).reduce((a,m)=>a+Number(m.amount),0);
@@ -946,6 +982,97 @@ $("#debtDelete").addEventListener("click", async ()=>{
   if(error){ $("#debtErr").textContent=friendlyErr(error); return; }
   closeSheets(); loadDebts();
 });
+
+/* ---------- gráficos ---------- */
+const MSHORT=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const NS="http://www.w3.org/2000/svg";
+function sv(tag, attrs, text){ const e=document.createElementNS(NS,tag); for(const k in attrs) e.setAttribute(k,attrs[k]); if(text!=null) e.textContent=text; return e; }
+function shortMoney(v){ const a=Math.abs(v); const s = a>=1000 ? (a/1000).toFixed(a>=10000?0:1).replace(".",",")+" mil" : Math.round(a).toString(); return (v<0?"−":"")+"R$ "+s; }
+function roundedTop(x,y,w,h,r){ r=Math.min(r,w/2,h); if(h<=0) return ""; return `M${x},${y+h} L${x},${y+r} Q${x},${y} ${x+r},${y} L${x+w-r},${y} Q${x+w},${y} ${x+w},${y+r} L${x+w},${y+h} Z`; }
+function monthTotals(){
+  const ms=trendMonths(); const me=state.user.id;
+  return ms.map(mo=>{
+    const rows=state.trend.filter(t=>String(t.date).slice(0,7)===mo.key);
+    const casa=rows.filter(t=>t.scope==="casa").reduce((a,t)=>a+Number(t.amount),0);
+    const inn=rows.filter(t=>t.scope==="pessoal"&&t.user_id===me&&t.type==="in").reduce((a,t)=>a+Number(t.amount),0);
+    const out=rows.filter(t=>(t.scope==="pessoal"&&t.user_id===me&&t.type==="out")||(t.scope==="casa"&&t.paid&&t.paid_by===me)).reduce((a,t)=>a+Number(t.amount),0);
+    const saved=state.saves.filter(s=>String(s.date).slice(0,7)===mo.key).reduce((a,s)=>a+Number(s.amount),0);
+    return Object.assign({}, mo, {casa, inn, out, left:inn-out, saved});
+  });
+}
+function compareMsg(cur, prev, prevName, noun){
+  const box=el("div","msg");
+  if(!prev && !cur){ box.append(el("span","ar eq","="), el("span",null,"Sem "+noun+" lançados ainda.")); return box; }
+  if(!prev){ box.append(el("span","ar eq","="), el("span",null,"Nada lançado em "+prevName+" pra comparar.")); return box; }
+  const diff=cur-prev, pct=Math.round(Math.abs(diff)/prev*100);
+  if(Math.abs(diff)<0.005){ box.append(el("span","ar eq","="), el("span",null,"Igual a "+prevName+".")); return box; }
+  const up=diff>0;
+  box.append(el("span","ar "+(up?"up":"down"), up?"↑":"↓"), el("span",null, money(Math.abs(diff))+(up?" a mais":" a menos")+" que "+prevName+" ("+(up?"+":"−")+pct+"%)"));
+  return box;
+}
+function barChart(series, data, pick, onPick, opts){
+  const W=340, H=150, top=18, bottom=22, left=4, right=4;
+  const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`, role:"img", "aria-label":opts.label});
+  const max=Math.max(1,...data.flatMap(d=>series.map(s=>d[s.key])));
+  const ph=H-top-bottom, slot=(W-left-right)/data.length;
+  const gap=2, groupW=Math.min(slot*0.62, 18*series.length+gap*(series.length-1)), barW=(groupW-gap*(series.length-1))/series.length;
+  const y=v=>top+ph-(v/max)*ph;
+  [0.5,1].forEach(f=>svg.appendChild(sv("line",{x1:left,x2:W-right,y1:y(max*f),y2:y(max*f),stroke:"var(--line)","stroke-width":1})));
+  svg.appendChild(sv("line",{x1:left,x2:W-right,y1:top+ph,y2:top+ph,stroke:"var(--line)","stroke-width":1}));
+  if(opts.avg!=null && opts.avg>0){
+    const ay=y(opts.avg);
+    svg.appendChild(sv("line",{x1:left,x2:W-right,y1:ay,y2:ay,stroke:"var(--muted)","stroke-width":1,"stroke-dasharray":"3 3"}));
+  }
+  data.forEach((d,i)=>{
+    const gx=left+slot*i+(slot-groupW)/2, sel=i===pick;
+    series.forEach((s,j)=>{
+      const v=d[s.key]; const h=Math.max(0,(v/max)*ph); const x=gx+j*(barW+gap);
+      const fill = typeof s.color==="function" ? s.color(sel) : s.color;
+      if(h>0.5) svg.appendChild(sv("path",{d:roundedTop(x,top+ph-h,barW,h,4),fill}));
+    });
+    if(sel && opts.valueKey){ const v=d[opts.valueKey]; svg.appendChild(sv("text",{class:"v",x:gx+groupW/2,y:y(v)-6,"text-anchor":"middle"},shortMoney(v))); }
+    svg.appendChild(sv("text",{class:"ml"+(sel?" sel":""),x:left+slot*i+slot/2,y:H-6,"text-anchor":"middle"},MSHORT[d.m]));
+    const hit=sv("rect",{class:"hit",x:left+slot*i,y:0,width:slot,height:H});
+    const t=sv("title",{},MONTHS[d.m]+": "+series.map(s=>s.name+" "+money(d[s.key])).join(" · ")); hit.appendChild(t);
+    hit.addEventListener("click",()=>onPick(i));
+    svg.appendChild(hit);
+  });
+  return svg;
+}
+function renderCasaTrend(){
+  const box=$("#casaTrend"); box.replaceChildren();
+  const data=monthTotals(); const i=state.pickCasa; const cur=data[i], prev=data[i-1];
+  const th=el("div","th"); th.append(el("b",null,"Evolução dos gastos"), el("span",null,"últimos 6 meses · toque num mês"));
+  box.appendChild(th);
+  box.appendChild(compareMsg(cur.casa, prev?prev.casa:0, prev?MONTHS[prev.m].toLowerCase():"o mês anterior", "gastos"));
+  const withData=data.filter(d=>d.casa>0); const avg=withData.length>1 ? withData.reduce((a,d)=>a+d.casa,0)/withData.length : null;
+  box.appendChild(barChart([{key:"casa",name:"Casa",color:sel=>sel?"var(--accent)":"color-mix(in srgb,var(--accent) 35%,var(--surface))"}], data, i,
+    k=>{ state.pickCasa=k; renderCasaTrend(); }, {label:"Gastos da casa por mês", valueKey:"casa", avg}));
+  if(avg) box.appendChild(el("div","note2","Linha tracejada = média dos meses com gastos: "+money(avg)));
+}
+function renderEuTrend(){
+  const box=$("#euTrend"); box.replaceChildren();
+  const data=monthTotals(); const i=state.pickEu; const d=data[i], prev=data[i-1];
+  const th=el("div","th"); th.append(el("b",null,"Entrou × gastou"), el("span",null,"últimos 6 meses · toque num mês"));
+  box.appendChild(th);
+  const msg=el("div","msg"); const nm=MONTHS[d.m].toLowerCase();
+  if(!d.inn && !d.out){ msg.append(el("span","ar eq","="), el("span",null,"Nada lançado em "+nm+".")); }
+  else if(d.left>=0){
+    const txt="Em "+nm+" sobrou "+money(d.left)+(d.saved>0?" e você guardou "+money(d.saved)+(d.left>0?" ("+Math.round(Math.min(d.saved,d.left)/d.left*100)+"% da sobra)":""):d.left>0?". Dá pra guardar uma parte!":"");
+    msg.append(el("span","ar down","✓"), el("span",null,txt));
+  } else {
+    msg.append(el("span","ar up","!"), el("span",null,"Em "+nm+" você gastou "+money(-d.left)+" a mais do que entrou."));
+  }
+  box.appendChild(msg);
+  const lg=el("div","lg"); [["Entradas","var(--c-in)"],["Gastos","var(--c-out)"]].forEach(([n,c])=>{ const sp=el("span"); const ii=el("i"); ii.style.background=c; sp.append(ii, document.createTextNode(n)); lg.appendChild(sp); });
+  box.appendChild(lg);
+  box.appendChild(barChart([{key:"inn",name:"Entradas",color:sel=>sel?"var(--c-in)":"color-mix(in srgb,var(--c-in) 45%,var(--surface))"},{key:"out",name:"Gastos",color:sel=>sel?"var(--c-out)":"color-mix(in srgb,var(--c-out) 45%,var(--surface))"}], data, i,
+    k=>{ state.pickEu=k; renderEuTrend(); }, {label:"Entradas e gastos por mês"}));
+  if(prev && (prev.inn||prev.out) && (d.inn||d.out)){
+    const diff=d.left-prev.left;
+    box.appendChild(el("div","note2", "Sobra "+(diff>=0?"maior":"menor")+" que em "+MONTHS[prev.m].toLowerCase()+": "+(diff>=0?"+ ":"− ")+money(Math.abs(diff))+". Gastos inclui o que você pagou da casa."));
+  } else box.appendChild(el("div","note2","Gastos inclui o que você pagou de contas da casa."));
+}
 
 /* ---------- contas fixas ---------- */
 function daysIn(y,m){ return new Date(y,m+1,0).getDate(); }
