@@ -184,6 +184,15 @@ button{cursor:pointer}
 .shop .nm span{font-size:12px;color:var(--muted)}
 .shop.done .nm b{text-decoration:line-through;color:var(--muted);font-weight:500}
 .shop .x{border:0;background:none;color:var(--muted);font-size:18px;padding:2px 6px}
+.shop .meta{display:flex;flex-direction:row;flex-wrap:wrap;gap:6px;margin-top:4px;align-items:center;font-size:12px}
+.shop .meta .when{font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+.shop .meta .when.soon{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.shop .meta .when.late{background:color-mix(in srgb,var(--out) 15%,transparent);color:var(--out)}
+.shop .meta a{font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);max-width:170px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.shop .meta a svg{width:12px;height:12px;flex:none}
+.shop .meta .by{font-size:12px;color:var(--muted)}
+.shop.done .meta .when{opacity:.6}
+.more-link{align-self:flex-start}
 .sub-h{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:2px 4px}
 
 /* gráficos de tendência */
@@ -318,6 +327,7 @@ button{cursor:pointer}
         <input id="shopQty" maxlength="20" autocomplete="off" placeholder="Qtd." aria-label="Quantidade">
         <button class="btn primary" type="submit">Pôr</button>
       </form>
+      <button class="link more-link" type="button" id="shopMore">+ Adicionar com link ou data</button>
       <div class="err" id="shopErr"></div>
       <div id="shopList"></div>
       <button class="btn danger full" type="button" id="shopClear" hidden>Limpar comprados</button>
@@ -339,6 +349,22 @@ button{cursor:pointer}
         <span class="hint" id="houseShare"></span>
       </div>
     </div>
+    <div class="seg" id="euSeg" role="group" aria-label="Parte pessoal">
+      <button type="button" data-v="mes" aria-pressed="true">Meu mês</button>
+      <button type="button" data-v="compras" aria-pressed="false">Minhas compras</button>
+    </div>
+    <div id="paneMyShop" class="section" hidden>
+      <form class="shop-add" id="myShopForm" novalidate>
+        <input id="myShopName" maxlength="60" autocomplete="off" placeholder="O que você quer comprar?" aria-label="Item">
+        <input id="myShopQty" maxlength="20" autocomplete="off" placeholder="Qtd." aria-label="Quantidade">
+        <button class="btn primary" type="submit">Pôr</button>
+      </form>
+      <button class="link more-link" type="button" id="myShopMore">+ Adicionar com link ou data</button>
+      <div class="err" id="myShopErr"></div>
+      <div id="myShopList"></div>
+      <button class="btn danger full" type="button" id="myShopClear" hidden>Limpar comprados</button>
+    </div>
+    <div id="paneMes" class="section">
     <div class="card save" id="saveCard">
       <div class="h">
         <div><div class="lbl2">Poupança</div><div class="amt num" id="svTotal">R$ 0,00</div><div class="sub" id="svMonth"></div></div>
@@ -351,6 +377,7 @@ button{cursor:pointer}
     <div class="filter" id="filterBox" hidden><span id="filterTxt"></span><button id="clearFilter" type="button">Limpar</button></div>
     <h2>Seus lançamentos <small id="countTxt">só você vê</small></h2>
     <div id="txList"></div>
+    </div>
   </section>
 
   <!-- CATEGORIAS -->
@@ -439,6 +466,25 @@ button{cursor:pointer}
     <div class="err" id="setErr"></div>
     <button class="btn primary full" type="submit">Salvar nome</button>
     <button class="btn danger full" type="button" id="logout">Sair da conta</button>
+  </form>
+</div>
+
+<!-- folha: item da lista -->
+<div class="sheet-bg" id="itemSheet" role="dialog" aria-modal="true" aria-labelledby="itTitle">
+  <form class="sheet" id="itemForm" novalidate>
+    <div class="grab"></div>
+    <h3><span id="itTitle">Item da lista</span><button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h3>
+    <p class="note" id="itWhere" style="text-align:left;margin:0"></p>
+    <div class="row2" style="grid-template-columns:1fr 96px">
+      <div class="field"><label for="itName">O que comprar</label><input id="itName" maxlength="60" autocomplete="off" placeholder="Ex.: Guarda-roupa"></div>
+      <div class="field"><label for="itQty">Qtd.</label><input id="itQty" maxlength="20" autocomplete="off"></div>
+    </div>
+    <div class="field"><label for="itLink">Link da loja (opcional)</label><input id="itLink" type="url" inputmode="url" autocomplete="off" placeholder="Cole aqui o link do produto"></div>
+    <div class="field"><label for="itDate">Quando quer comprar (opcional)</label><input id="itDate" type="date"></div>
+    <div class="chips" id="itQuick"></div>
+    <div class="err" id="itErr"></div>
+    <button class="btn primary full" type="submit" id="itSave">Salvar</button>
+    <button class="btn danger full" type="button" id="itDelete" hidden>Tirar da lista</button>
   </form>
 </div>
 
@@ -556,7 +602,7 @@ function friendlyErr(e){
 /* ---------- estado ---------- */
 const now = new Date();
 const state = { y:now.getFullYear(), m:now.getMonth(), view:"casa", catKind:"casa", filterCat:null,
-  user:null, profile:null, household:null, members:[], txs:[], debts:[], cats:[], saves:[], shop:[], fixed:[], casaTab:"gastos", trend:[], pickCasa:5, pickEu:5, loading:false };
+  user:null, profile:null, household:null, members:[], txs:[], debts:[], cats:[], saves:[], shop:[], fixed:[], casaTab:"gastos", euTab:"mes", trend:[], pickCasa:5, pickEu:5, loading:false };
 function memberName(id){ const p = state.members.find(m=>m.id===id); return p ? firstName(p.name) : "Alguém"; }
 function memberColor(id){ const i = state.members.findIndex(m=>m.id===id); return PCOLORS[i<0?3:i%PCOLORS.length]; }
 
@@ -779,7 +825,7 @@ function renderCasa(){
   $("#paneGastos").hidden = state.casaTab!=="gastos";
   $("#paneFixas").hidden = state.casaTab!=="fixas";
   $("#paneCompras").hidden = state.casaTab!=="compras";
-  renderFixPending(fixPend); renderFixList(); renderShop(); renderCasaTrend();
+  renderFixPending(fixPend); renderFixList(); renderShop("casa"); renderCasaTrend();
   const alone = state.members.length<2;
   $("#inviteBanner").hidden = !alone;
   if(alone) $("#inviteTxt").textContent = "Só você está na casa por enquanto.";
@@ -795,6 +841,10 @@ function renderEu(){
   $("#metaTxt").textContent = t.inn>0 ? "Gastos: "+pct+"% da renda" : "Gastos: lance suas entradas";
   const mb=$("#metaBar"); mb.classList.toggle("over", pct>70); mb.firstElementChild.style.width=Math.min(pct,100)+"%";
   $("#houseShare").textContent = t.house ? "Inclui "+money(t.house)+" que você pagou de contas da casa" : "";
+  document.querySelectorAll("#euSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===state.euTab)));
+  $("#paneMes").hidden = state.euTab!=="mes";
+  $("#paneMyShop").hidden = state.euTab!=="compras";
+  renderShop("pessoal");
   renderEuTrend();
   const [ma,mb2] = monthRange();
   const svTotal = state.saves.reduce((a,m)=>a+Number(m.amount),0);
@@ -1164,12 +1214,28 @@ $("#fxDelete").addEventListener("click", async ()=>{
   closeSheets(); loadFixed();
 });
 
-/* ---------- lista de compras ---------- */
-function renderShop(){
-  const box=$("#shopList"); box.replaceChildren();
-  const todo = state.shop.filter(i=>!i.done), done = state.shop.filter(i=>i.done);
-  $("#shopClear").hidden = !done.length;
-  if(!state.shop.length){ const e=el("div","card empty"); e.append(el("b",null,"Lista vazia"), el("span",null,"Escreva o que está faltando em casa. Os dois veem a mesma lista.")); box.appendChild(e); return; }
+/* ---------- lista de compras (casa e pessoal) ---------- */
+const SHOP_IDS = { casa:{form:"shopForm",name:"shopName",qty:"shopQty",list:"shopList",clear:"shopClear",err:"shopErr",more:"shopMore"},
+                   pessoal:{form:"myShopForm",name:"myShopName",qty:"myShopQty",list:"myShopList",clear:"myShopClear",err:"myShopErr",more:"myShopMore"} };
+const shopItems = scope => state.shop.filter(i=> scope==="casa" ? !!i.household_id : (i.user_id===state.user.id && !i.household_id));
+function dayDiff(iso){ const t=new Date(); t.setHours(0,0,0,0); const d=new Date(iso+"T00:00:00"); return Math.round((d-t)/86400000); }
+function whenTag(iso){
+  const n=dayDiff(iso); const dt=new Date(iso+"T12:00:00"); const short=dt.getDate()+" "+MSHORT[dt.getMonth()];
+  if(n<0) return {cls:"late", txt:"Passou "+(-n)+(n===-1?" dia":" dias")+" ("+short+")"};
+  if(n===0) return {cls:"soon", txt:"Hoje"};
+  if(n===1) return {cls:"soon", txt:"Amanhã"};
+  if(n<=7) return {cls:"soon", txt:"Em "+n+" dias ("+short+")"};
+  return {cls:"", txt:"Em "+n+" dias · "+short};
+}
+function safeLink(u){ try{ const x=new URL(u); return (x.protocol==="https:"||x.protocol==="http:") ? x : null; }catch(e){ return null; } }
+const LINK_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>';
+function renderShop(scope){
+  const ids=SHOP_IDS[scope]; const box=$("#"+ids.list); box.replaceChildren();
+  const all=shopItems(scope);
+  const todo = all.filter(i=>!i.done).sort((a,b)=>{ if(a.planned_date&&b.planned_date) return a.planned_date.localeCompare(b.planned_date); if(a.planned_date) return -1; if(b.planned_date) return 1; return String(a.created_at).localeCompare(String(b.created_at)); });
+  const done = all.filter(i=>i.done);
+  $("#"+ids.clear).hidden = !done.length;
+  if(!all.length){ const e=el("div","card empty"); e.append(el("b",null,"Lista vazia"), el("span",null, scope==="casa" ? "Escreva o que está faltando em casa. Os dois veem a mesma lista." : "Anote o que você quer comprar, com link da loja e data. Só você vê.")); box.appendChild(e); return; }
   const mk = (items, title)=>{
     if(!items.length) return;
     box.appendChild(el("div","sub-h",title));
@@ -1178,39 +1244,87 @@ function renderShop(){
       const r=el("div","shop"+(it.done?" done":""));
       const ck=el("button","ck"); ck.type="button"; ck.setAttribute("aria-label",(it.done?"Desmarcar ":"Marcar como comprado: ")+it.name);
       ck.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"/></svg>';
-      const nm=el("button","nm"); nm.type="button";
+      const mid=el("div"); mid.style.minWidth="0";
+      const nm=el("button","nm"); nm.type="button"; nm.setAttribute("aria-label","Editar "+it.name);
       nm.appendChild(el("b",null,it.name+(it.qty?" · "+it.qty:"")));
-      if(state.members.length>1 && it.created_by) nm.appendChild(el("span",null,"pôs: "+memberName(it.created_by)));
-      const toggle = async ()=>{ it.done=!it.done; renderShop(); const { error } = await sb.from("shopping_items").update({done:it.done}).eq("id",it.id); if(error){ $("#shopErr").textContent=friendlyErr(error); loadShop(); } };
-      ck.addEventListener("click",toggle); nm.addEventListener("click",toggle);
+      nm.addEventListener("click",()=>openItem(scope,it));
+      mid.appendChild(nm);
+      const meta=el("div","meta");
+      if(it.planned_date){ const w=whenTag(it.planned_date); meta.appendChild(el("span","when "+(it.done?"":w.cls), it.done?"Era pra "+new Date(it.planned_date+"T12:00:00").getDate()+" "+MSHORT[new Date(it.planned_date+"T12:00:00").getMonth()]:w.txt)); }
+      const u = it.link ? safeLink(it.link) : null;
+      if(u){ const a=document.createElement("a"); a.href=u.href; a.target="_blank"; a.rel="noopener noreferrer"; a.innerHTML=LINK_SVG; a.appendChild(document.createTextNode(u.hostname.replace(/^www\./,""))); meta.appendChild(a); }
+      if(scope==="casa" && state.members.length>1 && it.created_by) meta.appendChild(el("span","by","pôs: "+memberName(it.created_by)));
+      if(meta.childNodes.length) mid.appendChild(meta);
+      ck.addEventListener("click", async ()=>{ it.done=!it.done; render(); const { error } = await sb.from("shopping_items").update({done:it.done}).eq("id",it.id); if(error){ $("#"+ids.err).textContent=friendlyErr(error); loadShop(); } });
       const x=el("button","x","×"); x.type="button"; x.setAttribute("aria-label","Tirar da lista: "+it.name);
-      x.addEventListener("click", async ()=>{ state.shop=state.shop.filter(i=>i.id!==it.id); renderShop(); const { error } = await sb.from("shopping_items").delete().eq("id",it.id); if(error){ $("#shopErr").textContent=friendlyErr(error); loadShop(); } });
-      r.append(ck,nm,x); card.appendChild(r);
+      x.addEventListener("click", async ()=>{ state.shop=state.shop.filter(i=>i.id!==it.id); render(); const { error } = await sb.from("shopping_items").delete().eq("id",it.id); if(error){ $("#"+ids.err).textContent=friendlyErr(error); loadShop(); } });
+      r.append(ck,mid,x); card.appendChild(r);
     });
     box.appendChild(card);
   };
   mk(todo, todo.length===1?"Falta 1 item":"Faltam "+todo.length+" itens");
   mk(done, "Comprados");
 }
-$("#shopForm").addEventListener("submit", async e=>{
+function shopOwner(scope){ return scope==="casa" ? {household_id:state.household.id} : {user_id:state.user.id}; }
+["casa","pessoal"].forEach(scope=>{
+  const ids=SHOP_IDS[scope];
+  $("#"+ids.form).addEventListener("submit", async e=>{
+    e.preventDefault();
+    const name=$("#"+ids.name).value.trim(), qty=$("#"+ids.qty).value.trim();
+    $("#"+ids.err).textContent="";
+    if(!name){ $("#"+ids.err).textContent="Escreva o nome do item."; return; }
+    $("#"+ids.name).value=""; $("#"+ids.qty).value=""; $("#"+ids.name).focus();
+    const { error } = await sb.from("shopping_items").insert(Object.assign(shopOwner(scope),{name:name.slice(0,60), qty:qty.slice(0,20)}));
+    if(error){ $("#"+ids.err).textContent=friendlyErr(error); }
+    loadShop();
+  });
+  $("#"+ids.more).addEventListener("click",()=>openItem(scope,null,$("#"+ids.name).value.trim()));
+  $("#"+ids.clear).addEventListener("click", async ()=>{
+    const b=$("#"+ids.clear);
+    if(b.dataset.confirm!=="1"){ b.dataset.confirm="1"; b.textContent="Toque de novo pra limpar"; return; }
+    b.dataset.confirm=""; b.textContent="Limpar comprados";
+    const del = shopItems(scope).filter(i=>i.done).map(i=>i.id);
+    const { error } = await sb.from("shopping_items").delete().in("id",del);
+    if(error) $("#"+ids.err).textContent=friendlyErr(error);
+    loadShop();
+  });
+});
+let itScope="casa", itEditing=null;
+function isoPlus(days, months){ const d=new Date(); if(months) d.setMonth(d.getMonth()+months); else d.setDate(d.getDate()+days); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function openItem(scope, it, prefill){
+  itScope=scope; itEditing=it||null;
+  $("#itTitle").textContent = it ? "Editar item" : "Novo item";
+  $("#itWhere").textContent = scope==="casa" ? "Lista da casa: vocês dois veem." : "Sua lista: só você vê.";
+  $("#itName").value = it ? it.name : (prefill||""); $("#itQty").value = it ? it.qty : "";
+  $("#itLink").value = it ? (it.link||"") : ""; $("#itDate").value = it ? (it.planned_date||"") : "";
+  $("#itDelete").hidden=!it; $("#itErr").textContent="";
+  const q=$("#itQuick"); q.replaceChildren();
+  [["Daqui 1 semana",()=>isoPlus(7)],["Daqui a 1 mês",()=>isoPlus(0,1)],["Daqui 3 meses",()=>isoPlus(0,3)],["Sem data",()=>""]].forEach(([lbl,fn])=>{
+    const b=el("button","chip",lbl); b.type="button"; b.addEventListener("click",()=>{ $("#itDate").value=fn(); }); q.appendChild(b);
+  });
+  $("#itemSheet").classList.add("open");
+  if(!it && !prefill) setTimeout(()=>$("#itName").focus(),60);
+}
+$("#itemForm").addEventListener("submit", async e=>{
   e.preventDefault();
-  const name=$("#shopName").value.trim(), qty=$("#shopQty").value.trim();
-  $("#shopErr").textContent="";
-  if(!name){ $("#shopErr").textContent="Escreva o nome do item."; return; }
-  $("#shopName").value=""; $("#shopQty").value=""; $("#shopName").focus();
-  const { error } = await sb.from("shopping_items").insert({household_id:state.household.id, name:name.slice(0,60), qty:qty.slice(0,20)});
-  if(error){ $("#shopErr").textContent=friendlyErr(error); }
-  loadShop();
+  const name=$("#itName").value.trim(), qty=$("#itQty").value.trim(); let link=$("#itLink").value.trim(); const date=$("#itDate").value||null;
+  const er=$("#itErr");
+  if(!name){ er.textContent="Escreva o que quer comprar."; return; }
+  if(link){ if(!/^https?:\/\//i.test(link)) link="https://"+link; if(!safeLink(link) || link.length>500){ er.textContent="Esse link não parece válido. Copie o endereço completo da página da loja."; return; } }
+  const row={name:name.slice(0,60), qty:qty.slice(0,20), link:link||null, planned_date:date};
+  const btn=$("#itSave"); btn.disabled=true;
+  const { error } = itEditing ? await sb.from("shopping_items").update(row).eq("id",itEditing.id) : await sb.from("shopping_items").insert(Object.assign(shopOwner(itScope),row));
+  btn.disabled=false;
+  if(error){ er.textContent=friendlyErr(error); return; }
+  $("#"+SHOP_IDS[itScope].name).value="";
+  closeSheets(); loadShop();
 });
-$("#shopClear").addEventListener("click", async ()=>{
-  const b=$("#shopClear");
-  if(b.dataset.confirm!=="1"){ b.dataset.confirm="1"; b.textContent="Toque de novo pra limpar"; return; }
-  b.dataset.confirm=""; b.textContent="Limpar comprados";
-  const ids = state.shop.filter(i=>i.done).map(i=>i.id);
-  const { error } = await sb.from("shopping_items").delete().in("id",ids);
-  if(error) $("#shopErr").textContent=friendlyErr(error);
-  loadShop();
+$("#itDelete").addEventListener("click", async ()=>{
+  const { error } = await sb.from("shopping_items").delete().eq("id",itEditing.id);
+  if(error){ $("#itErr").textContent=friendlyErr(error); return; }
+  closeSheets(); loadShop();
 });
+$("#euSeg").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; state.euTab=b.dataset.v; render(); });
 $("#casaSeg").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; state.casaTab=b.dataset.v; render(); });
 
 /* ---------- poupança ---------- */
@@ -1357,7 +1471,8 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheets(); });
 $("#fab").addEventListener("click",()=>{
   if(state.view==="debts") return openDebt(null);
   if(state.view==="casa" && state.casaTab==="fixas") return openFix(null);
-  if(state.view==="casa" && state.casaTab==="compras"){ $("#shopName").focus(); return; }
+  if(state.view==="casa" && state.casaTab==="compras") return openItem("casa",null);
+  if(state.view==="eu" && state.euTab==="compras") return openItem("pessoal",null);
   openTx(null, state.view==="cats" ? {scope: state.catKind==="casa" ? "casa" : "pessoal"} : {});
 });
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{ state.view=b.dataset.view; if(state.view!=="eu") state.filterCat=null; render(); window.scrollTo(0,0); }));
